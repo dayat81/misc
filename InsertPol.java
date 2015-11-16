@@ -33,13 +33,13 @@ public class InsertPol {
 				String type="";
 				String idstring=line.substring(line.indexOf("policyId"),line.indexOf("ruleCombiningAlgorithm"));
 				String id=idstring.split("\"")[1];				
-				System.out.println(idstring+" : "+id);
+				//System.out.println(idstring+" : "+id);
 				String rulestring=line.substring(line.indexOf("authorizationRules"),line.indexOf("policyCtxName"));
 				String rules[]=rulestring.split("\"");
 				JSONArray listrule = new JSONArray();
 				for (int i = 0; i < rules.length; i++) {
 					if(i%2==1){
-						System.out.println(rules[i]);
+						//System.out.println(rules[i]);
 						//get rule
 						BasicDBObject fields = new BasicDBObject("_id",false);
 						BasicDBObject whereQuery = new BasicDBObject();
@@ -49,8 +49,10 @@ public class InsertPol {
 							String jsonstr=cursor.next().toString();
 							if(jsonstr.contains("qos")){
 								type="qos";
+							}else if(jsonstr.contains("NotifyMessage")){
+								type="sms";
 							}
-							System.out.println(jsonstr);
+							//System.out.println(jsonstr);
 							DBObject dbObject = (DBObject) JSON.parse(jsonstr);
 							listrule.add(dbObject);
 						}

@@ -30,39 +30,39 @@ public class InsertRule {
 			BufferedReader br = new BufferedReader(new FileReader(args[0]));
 			String line="";
 			while ((line = br.readLine()) != null) {
-				if(line.contains("QosProfile")){
-					String idstring=line.substring(line.indexOf("authRuleId"),line.indexOf("provisionedConditionFormula"));
-					String id=idstring.split("\"")[1];	
-					System.out.println(idstring+" : "+id);
-					String formulastring=line.substring(line.indexOf("provisionedConditionFormula"),line.indexOf("provisionedPermitOutputAttrValues"));
-					String formula=formulastring.substring(formulastring.indexOf("(\"")+2,formulastring.lastIndexOf("\")"));
-					System.out.println(formulastring+" : "+formula);
-					char accessType='A';
-					if(formula.contains("AccessData.bearer.accessType")){
-						String atstring=formula.substring(formula.indexOf("AccessData.bearer.accessType"));
-						atstring=atstring.substring(atstring.indexOf("=")+2);
-						//check after =
-						if(atstring.charAt(0)!=' '){
-							if(atstring.charAt(0)!='\\'){
-								accessType=atstring.charAt(0);
-							}else{
-								accessType=atstring.charAt(2);
-							}
+				String idstring=line.substring(line.indexOf("authRuleId"),line.indexOf("provisionedConditionFormula"));
+				String id=idstring.split("\"")[1];	
+				//System.out.println(idstring+" : "+id);
+				String formulastring=line.substring(line.indexOf("provisionedConditionFormula"),line.indexOf("provisionedPermitOutputAttrValues"));
+				String formula=formulastring.substring(formulastring.indexOf("(\"")+2,formulastring.lastIndexOf("\")"));
+				//System.out.println(formulastring+" : "+formula);
+				char accessType='A';
+				if(formula.contains("AccessData.bearer.accessType")){
+					String atstring=formula.substring(formula.indexOf("AccessData.bearer.accessType"));
+					atstring=atstring.substring(atstring.indexOf("=")+2);
+					//check after =
+					if(atstring.charAt(0)!=' '){
+						if(atstring.charAt(0)!='\\'){
+							accessType=atstring.charAt(0);
 						}else{
-							if(atstring.charAt(1)!='\\'){
-								accessType=atstring.charAt(1);
-							}else{
-								accessType=atstring.charAt(3);
-							}						
+							accessType=atstring.charAt(2);
 						}
+					}else{
+						if(atstring.charAt(1)!='\\'){
+							accessType=atstring.charAt(1);
+						}else{
+							accessType=atstring.charAt(3);
+						}						
 					}
-					System.out.println("at : "+accessType);
-					String qosstring=line.substring(line.indexOf("provisionedPermitOutputAttrValues"),line.indexOf("provisionedDenyOutputAttrValues"));
+				}
+				//System.out.println("at : "+accessType);
+				String qosstring=line.substring(line.indexOf("provisionedPermitOutputAttrValues"),line.indexOf("provisionedDenyOutputAttrValues"));				
+				if(qosstring.contains("QosProfile")){					
 					String qoss[]=qosstring.split("QosProfile");
 					JSONArray listqos = new JSONArray();
 					for (int i = 1; i < qoss.length; i++) {
 						String qos=qoss[i].split("\"")[1];
-						System.out.println(qos.substring(0,qos.length()-1));
+						//System.out.println(qos.substring(0,qos.length()-1));
 						//get qos id
 						BasicDBObject fields = new BasicDBObject("_id",false);
 						BasicDBObject whereQuery = new BasicDBObject();
@@ -70,7 +70,7 @@ public class InsertRule {
 						DBCursor cursor = collqos.find(whereQuery,fields);
 						while(cursor.hasNext()) {
 							String jsonstr=cursor.next().toString();
-							System.out.println(jsonstr);
+							//System.out.println(jsonstr);
 							DBObject dbObject = (DBObject) JSON.parse(jsonstr);
 							listqos.add(dbObject);
 						}
@@ -80,6 +80,25 @@ public class InsertRule {
 						coll.insert(listItem);
 					}catch(Exception e){
 						e.printStackTrace();
+					}
+				}else{	//non-qos
+					if(!qosstring.equals("provisionedPermitOutputAttrValues:A0[]")){
+						String outstring=qosstring.substring(qosstring.indexOf("(\"")+2,qosstring.lastIndexOf("\")"));						
+						String outname=line.substring(line.indexOf("provisionedPermitOutputAttrNames"),line.indexOf("provisionedDenyOutputAttrNames"));
+						//System.out.println(outname.split("\"")[1]+":"+outstring);
+						try{
+							DBObject listItem = new BasicDBObject("id", id).append("formula",formula).append("accessType", accessType).append("output", outname.split("\"")[1]+":"+outstring);
+							coll.insert(listItem);
+						}catch(Exception e){
+							e.printStackTrace();
+						}						
+					}else{
+						try{
+							DBObject listItem = new BasicDBObject("id", id).append("formula",formula).append("accessType", accessType);
+							coll.insert(listItem);
+						}catch(Exception e){
+							e.printStackTrace();
+						}
 					}
 				}
 			}
