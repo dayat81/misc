@@ -24,6 +24,7 @@ public class InsertRule {
 			DB db = mongoClient.getDB( "sapc" );
 			String host = args[1];
 			DBCollection coll = db.getCollection(host+"_rule");
+			coll.drop();
 			coll.createIndex(new BasicDBObject("id", 1));
 			DBCollection collqos = db.getCollection(host+"_qos");			
 			BufferedReader br = new BufferedReader(new FileReader(args[0]));
@@ -75,7 +76,7 @@ public class InsertRule {
 						}
 					}
 					try{
-						DBObject listItem = new BasicDBObject("id", id).append("accessType", accessType).append("qos", listqos);
+						DBObject listItem = new BasicDBObject("id", id).append("formula",formula).append("accessType", accessType).append("qos", listqos);
 						coll.insert(listItem);
 					}catch(Exception e){
 						e.printStackTrace();

@@ -4,6 +4,7 @@ import java.io.FileReader;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
+import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 
@@ -20,7 +21,9 @@ public class InsertQoS {
 			DB db = mongoClient.getDB( "sapc" );
 			String host = args[1];
 			DBCollection coll = db.getCollection(host+"_qos");
+			coll.drop();
 			coll.createIndex(new BasicDBObject("id", 1));
+			DBCollection colnp = db.getCollection("np");
 			BufferedReader br = new BufferedReader(new FileReader(args[0]));
 			String line="";
 			while ((line = br.readLine()) != null) {
@@ -39,8 +42,16 @@ public class InsertQoS {
 				String cistring=line.substring(line.indexOf("classIdentifier"),line.indexOf("]]]"));
 				String ci=cistring.split("\"")[1];
 				//System.out.println(cistring+" : "+ci);
+				BasicDBObject whereQuery = new BasicDBObject();
+				whereQuery.put("arp", arp);
+				whereQuery.put("ci", ci);
+				DBCursor cursor = colnp.find(whereQuery);
+				String np="";
+				if(cursor.hasNext()){
+					np=(String) cursor.next().get("np");
+				}
 				try{
-					DBObject listItem = new BasicDBObject("id", id).append("mbrdl", mbrdl).append("mbrul",mbrul).append("arp", arp).append("ci", ci);
+					DBObject listItem = new BasicDBObject("id", id).append("mbrdl", mbrdl).append("mbrul",mbrul).append("arp", arp).append("ci", ci).append("np", np);
 					coll.insert(listItem);
 				}catch(Exception e){
 					e.printStackTrace();
