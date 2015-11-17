@@ -56,12 +56,14 @@ public class InsertSbj {
 						listsr.add(dbObject);
 					}					
 				}
-				try{
-					DBObject listItem = new BasicDBObject("id", sbjstring).append("subjectresource",listsr);
-					coll.insert(listItem);
-				}catch(Exception e){
-					e.printStackTrace();
-				}				
+				//if(listsr.size()>0){
+					try{
+						DBObject listItem = new BasicDBObject("id", sbjstring).append("subjectresource",listsr);
+						coll.insert(listItem);
+					}catch(Exception e){
+						e.printStackTrace();
+					}
+				//}
 			}
 		}catch(Exception e){
 			e.printStackTrace();

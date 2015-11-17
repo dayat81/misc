@@ -28,19 +28,19 @@ public class InsertQoS {
 			String line="";
 			while ((line = br.readLine()) != null) {
 				String idstring=line.substring(line.indexOf("qosProfileName"),line.indexOf("trafficClass"));
-				String id=idstring.split("\"")[1];
+				String id=idstring.split("\"")[1].trim();
 				//System.out.println(idstring+" : "+id);
 				String mbrdlstring=line.substring(line.indexOf("mbrDownlink"),line.indexOf("mbrUplink"));
-				String mbrdl=mbrdlstring.split("\"")[1];
+				String mbrdl=mbrdlstring.split("\"")[1].trim();
 				//System.out.println(mbrdlstring+" : "+mbrdl);
 				String mbrulstring=line.substring(line.indexOf("mbrUplink"),line.indexOf("signalingIndicator"));
-				String mbrul=mbrulstring.split("\"")[1];
+				String mbrul=mbrulstring.split("\"")[1].trim();
 				//System.out.println(mbrulstring+" : "+mbrul);
 				String arpstring=line.substring(line.indexOf("arpPriorityLevel"),line.indexOf("arpPvi"));
-				String arp=arpstring.split("\"")[1];
+				String arp=arpstring.split("\"")[1].trim();
 				//System.out.println(arpstring+" : "+arp);
 				String cistring=line.substring(line.indexOf("classIdentifier"),line.indexOf("]]]"));
-				String ci=cistring.split("\"")[1];
+				String ci=cistring.split("\"")[1].trim();
 				//System.out.println(cistring+" : "+ci);
 				BasicDBObject whereQuery = new BasicDBObject();
 				whereQuery.put("arp", arp);

@@ -31,6 +31,7 @@ public class InsertSR {
 			String line="";
 			while ((line = br.readLine()) != null) {
 				String idx  = line.substring(line.indexOf("mdp:U("),line.indexOf("]logicalDbNo"));
+				String sbjgrp=line.substring(line.indexOf("subjectGroupId"),line.indexOf("resourceId")).split("\"")[1];
 				String resourcestring=line.substring(line.indexOf("resourceId"),line.indexOf("contextId")).split("\"")[1];
 				String contextstring=line.substring(line.indexOf("contextId"),line.indexOf("actionIds")).split("\"")[1];
 				String actionstring=line.substring(line.indexOf("actionIds"),line.indexOf("priority"));
@@ -61,7 +62,7 @@ public class InsertSR {
 					}					
 				}
 				try{
-					DBObject listItem = new BasicDBObject("idx", idx).append("resource",resourcestring).append("context", contextstring).append("action",listaction).append("pol", listpol);
+					DBObject listItem = new BasicDBObject("idx", idx).append("sbjgrp",sbjgrp).append("resource",resourcestring).append("context", contextstring).append("action",listaction).append("policy", listpol);
 					coll.insert(listItem);
 				}catch(Exception e){
 					e.printStackTrace();

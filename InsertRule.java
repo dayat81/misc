@@ -31,10 +31,10 @@ public class InsertRule {
 			String line="";
 			while ((line = br.readLine()) != null) {
 				String idstring=line.substring(line.indexOf("authRuleId"),line.indexOf("provisionedConditionFormula"));
-				String id=idstring.split("\"")[1];	
+				String id=idstring.split("\"")[1].trim();	
 				//System.out.println(idstring+" : "+id);
 				String formulastring=line.substring(line.indexOf("provisionedConditionFormula"),line.indexOf("provisionedPermitOutputAttrValues"));
-				String formula=formulastring.substring(formulastring.indexOf("(\"")+2,formulastring.lastIndexOf("\")"));
+				String formula=formulastring.substring(formulastring.indexOf("(\"")+2,formulastring.lastIndexOf("\")")).trim();
 				//System.out.println(formulastring+" : "+formula);
 				char accessType='A';
 				if(formula.contains("AccessData.bearer.accessType")){
