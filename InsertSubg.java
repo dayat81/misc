@@ -6,8 +6,10 @@ import org.json.simple.JSONArray;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
+import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
+import com.mongodb.util.JSON;
 
 
 public class InsertSubg {
@@ -23,7 +25,8 @@ public class InsertSubg {
 			String host = args[1];
 			DBCollection coll = db.getCollection(host+"_sbg");
 			coll.drop();
-			coll.createIndex(new BasicDBObject("id", 1));		
+			coll.createIndex(new BasicDBObject("id", 1));	
+			DBCollection collsvc = db.getCollection(host+"_svc");
 			BufferedReader br = new BufferedReader(new FileReader(args[0]));
 			String line="";
 			while ((line = br.readLine()) != null) {
@@ -36,7 +39,16 @@ public class InsertSubg {
 				for (int i = 0; i < serv.length; i++) {
 					if(i%2==1){
 						//System.out.println(serv[i]);
-						listsr.add(serv[i]);
+						//lookup svc
+						BasicDBObject fields = new BasicDBObject("_id",false);
+						BasicDBObject whereQuery = new BasicDBObject();
+						whereQuery.put("id", serv[i]);
+						DBCursor cursor = collsvc.find(whereQuery,fields);
+						String jsonstr="";
+						while(cursor.hasNext()) {
+							jsonstr=cursor.next().toString();
+						}
+						listsr.add((DBObject) JSON.parse(jsonstr));						
 					}
 				}
 				try{
