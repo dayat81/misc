@@ -25,7 +25,7 @@ public class InsertSR {
 			String host = args[1];
 			DBCollection coll = db.getCollection(host+"_sr");
 			coll.drop();
-			coll.createIndex(new BasicDBObject("id", 1));
+			coll.createIndex(new BasicDBObject("idx", 1));
 			DBCollection collpol = db.getCollection(host+"_pol");
 			BufferedReader br = new BufferedReader(new FileReader(args[0]));
 			String line="";
@@ -68,6 +68,7 @@ public class InsertSR {
 					e.printStackTrace();
 				}
 			}
+			br.close();
 		}catch(Exception e){
 			e.printStackTrace();
 		}
