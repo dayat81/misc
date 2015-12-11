@@ -35,8 +35,12 @@ public class InsertSR {
 				String resourcestring=line.substring(line.indexOf("resourceId"),line.indexOf("contextId")).split("\"")[1];
 				String contextstring=line.substring(line.indexOf("contextId"),line.indexOf("actionIds")).split("\"")[1];
 				String actionstring=line.substring(line.indexOf("actionIds"),line.indexOf("priority"));
+				String priostring=line.substring(line.indexOf("priority"),line.indexOf("policies"));
+				String prio=priostring.substring(priostring.indexOf("(")+1, priostring.indexOf(")"));
+//				System.out.println(line);
+//				System.out.println(prio);
 				String polstring=line.substring(line.indexOf("policies"),line.indexOf("]]"));
-				System.out.println(idx+" "+resourcestring+" "+contextstring);
+				//System.out.println(idx+" "+resourcestring+" "+contextstring);
 				String[] action=actionstring.split("\"");
 				JSONArray listaction = new JSONArray();
 				for (int i = 0; i < action.length; i++) {
@@ -62,7 +66,7 @@ public class InsertSR {
 					}					
 				}
 				try{
-					DBObject listItem = new BasicDBObject("idx", idx).append("sbjgrp",sbjgrp).append("resource",resourcestring).append("context", contextstring).append("action",listaction).append("policy", listpol);
+					DBObject listItem = new BasicDBObject("idx", idx).append("sbjgrp",sbjgrp).append("resource",resourcestring).append("context", contextstring).append("action",listaction).append("policy", listpol).append("prio", prio);
 					coll.insert(listItem);
 				}catch(Exception e){
 					e.printStackTrace();

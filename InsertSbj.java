@@ -27,6 +27,7 @@ public class InsertSbj {
 			coll.drop();
 			coll.createIndex(new BasicDBObject("id", 1));
 			DBCollection collsr = db.getCollection(host+"_sr");
+			DBCollection collsg = db.getCollection(host+"_sbg");
 			BufferedReader br = new BufferedReader(new FileReader(args[0]));
 			String line="";
 			while ((line = br.readLine()) != null) {
@@ -54,17 +55,36 @@ public class InsertSbj {
 						//System.out.println(jsonstr);
 						DBObject dbObject = (DBObject) JSON.parse(jsonstr);
 						listsr.add(dbObject);
-					}					
+					}	
+				}
+				//get subscription context
+				BasicDBObject whereQuery1 = new BasicDBObject();
+				whereQuery1.put("resource", sbjstring);
+				whereQuery1.put("sbjgrp", "");
+				BasicDBObject fields1 = new BasicDBObject("_id",false).append("idx", false);
+				DBCursor cursor2 = collsr.find(whereQuery1,fields1);
+				String rs="";
+				while(cursor2.hasNext()) {
+					rs=cursor2.next().toString();					
 				}
 				//if(listsr.size()>0){
-					try{
-						DBObject listItem = new BasicDBObject("id", sbjstring).append("subjectresource",listsr);
-						coll.insert(listItem);
-					}catch(Exception e){
-						e.printStackTrace();
-					}
+				BasicDBObject fields = new BasicDBObject("_id",false);
+				BasicDBObject whereQuery = new BasicDBObject();
+				whereQuery.put("id", sbjstring);
+				DBCursor cursor1 = collsg.find(whereQuery,fields);
+				String sg="";
+				while(cursor1.hasNext()) {
+					sg=cursor1.next().toString();
+				}
+				try{
+					DBObject listItem = new BasicDBObject("id", sbjstring).append("subjectresource",listsr).append("subscribergroup",(DBObject) JSON.parse(sg)).append("resource", (DBObject) JSON.parse(rs));
+					coll.insert(listItem);
+				}catch(Exception e){
+					e.printStackTrace();
+				}
 				//}
 			}
+			br.close();
 		}catch(Exception e){
 			e.printStackTrace();
 		}
