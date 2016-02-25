@@ -44,7 +44,7 @@ def update(msid,apn,mklist):
 	# send data
 	Conn.send(msg.decode('hex'))
 	
-def stop(msid,apn):
+def stop(msid,apn,mklist):
 	CCR_avps=[ ]
 	CCR_avps.append(encodeAVP('Session-Id',ORIGIN_HOST+";"+apn+";"+msid))
 	CCR_avps.append(encodeAVP('Auth-Application-Id',16777238))
@@ -53,6 +53,16 @@ def stop(msid,apn):
 	CCR_avps.append(encodeAVP('Destination-Realm', DEST_REALM))
 	CCR_avps.append(encodeAVP('CC-Request-Type', 3))
 	CCR_avps.append(encodeAVP('CC-Request-Number',req_num[ORIGIN_HOST+";"+apn+";"+msid]))
+	print "read mk"
+	print mklist
+	for mk in mklist:
+		print mk
+		for k in mk:
+			v=mk[k]
+			print k
+			print v
+			CCR_avps.append(encodeAVP('Usage-Monitoring-Information',[encodeAVP('Used-Service-Unit',[encodeAVP('CC-Total-Octets',v)]),encodeAVP('Monitoring-Key',str(k))]))
+			print "added"	
 	CCR=HDRItem()
 	#setFlags(CER,DIAMETER_HDR_PROXIABLE)
 	# Set command code
@@ -77,6 +87,7 @@ def start(msid,apn,ip):
 	CCR_avps.append(encodeAVP('Framed-IP-Address',ip))
 	CCR_avps.append(encodeAVP('Subscription-Id',[encodeAVP('Subscription-Id-Type',0),encodeAVP('Subscription-Id-Data',msid)]))
 	CCR_avps.append(encodeAVP('Called-Station-Id',apn))
+	CCR_avps.append(encodeAVP('QoS-Information', [encodeAVP('APN-Aggregate-Max-Bitrate-DL', '42000000'), encodeAVP('APN-Aggregate-Max-Bitrate-UL', '5760000')]))
 	CCR_avps.append(encodeAVP('Supported-Features',[encodeAVP('Vendor-Id', 10415), encodeAVP('Feature-List-ID', 1),encodeAVP('Feature-List', 3)]))
 	CCR=HDRItem()
 	#setFlags(CER,DIAMETER_HDR_PROXIABLE)
@@ -93,21 +104,24 @@ def start(msid,apn,ip):
 
 def handle_cmd(srv):
 	conn,address=srv.accept()
+	msid=""
+	apn=""
 	while True:
 		try:
 			received = conn.recv(1024)
 			jsonObject = json.loads(received)
-			action = jsonObject['action']
-			msid = jsonObject['msid']
-			apn = jsonObject['apn']			
+			action = jsonObject['action']		
 			if action=="start":
+				msid = jsonObject['msid']
+				apn = jsonObject['apn']					
 				ip = jsonObject['ip']
 				client_list[ORIGIN_HOST+";"+apn+";"+msid]=conn
 				req_num[ORIGIN_HOST+";"+apn+";"+msid]=0
 				start(msid,apn,ip)
 			elif action=="stop":
 				req_num[ORIGIN_HOST+";"+apn+";"+msid]+=1
-				stop(msid,apn)
+				mklist = jsonObject['mk']
+				stop(msid,apn,mklist)
 			elif action=="update":	
 				req_num[ORIGIN_HOST+";"+apn+";"+msid]+=1	
 				mklist = jsonObject['mk']
@@ -136,9 +150,36 @@ def handle_gx(conn):
 		DWA.EndToEnd=H.EndToEnd
 		ret=createRes(DWA,DWA_avps)
 		conn.send(ret.decode("hex"))
+	elif H.cmd==258:
+		rartype=findAVP("Re-Auth-Request-Type",avps)
+		qosinfo=findAVP("QoS-Information",avps)		
+		data = {}
+		data['rartype']=rartype
+		if qosinfo!=-1:
+			dl=findAVP("APN-Aggregate-Max-Bitrate-DL",qosinfo)
+			ul=findAVP("APN-Aggregate-Max-Bitrate-UL",qosinfo)
+			data['dl']=dl
+			data['ul']=ul	
+		json_data = json.dumps(data)
+		client_list[CCA_SESSION].send(json_data+"\n")			
+		RAA_SESSION=findAVP("Session-Id",avps)		
+		RAA_avps=[]
+		RAA_avps.append(encodeAVP('Session-Id', RAA_SESSION))
+		RAA_avps.append(encodeAVP('Origin-Host', ORIGIN_HOST))
+		RAA_avps.append(encodeAVP('Origin-Realm', ORIGIN_REALM))
+		RAA_avps.append(encodeAVP('Origin-State-Id', 15))
+		RAA_avps.append(encodeAVP('Result-Code', 2001))
+		RAA=HDRItem()
+		RAA.cmd=H.cmd
+		RAA.appId=H.appId
+		RAA.HopByHop=H.HopByHop
+		RAA.EndToEnd=H.EndToEnd
+		ret=createRes(RAA,RAA_avps)
+		conn.send(ret.decode("hex"))		
 	elif H.cmd==272:
 		CCA_SESSION=findAVP("Session-Id",avps)
 		rc=findAVP("Result-Code",avps)
+		qosinfo=findAVP("QoS-Information",avps)
 		mklist=[]
 		for avp in avps:
 			if isinstance(avp,tuple):
@@ -157,6 +198,11 @@ def handle_gx(conn):
 		data = {}
 		if mklist:
 			data['mk'] = mklist
+		if qosinfo!=-1:
+			dl=findAVP("APN-Aggregate-Max-Bitrate-DL",qosinfo)
+			ul=findAVP("APN-Aggregate-Max-Bitrate-UL",qosinfo)
+			data['dl']=dl
+			data['ul']=ul
 		data['rc'] = rc		
 		json_data = json.dumps(data)
 		client_list[CCA_SESSION].send(json_data+"\n")
