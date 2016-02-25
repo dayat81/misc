@@ -13,7 +13,38 @@ sys.path.append("..")
 
 from libDiameter import *
 
-def stoppdp(msid,apn):
+def update(msid,apn,mklist):
+	CCR_avps=[ ]
+	CCR_avps.append(encodeAVP('Session-Id',ORIGIN_HOST+";"+apn+";"+msid))
+	CCR_avps.append(encodeAVP('Auth-Application-Id',16777238))
+	CCR_avps.append(encodeAVP('Origin-Host', ORIGIN_HOST))
+	CCR_avps.append(encodeAVP('Origin-Realm', ORIGIN_REALM))
+	CCR_avps.append(encodeAVP('Destination-Realm', DEST_REALM))
+	CCR_avps.append(encodeAVP('CC-Request-Type', 2))
+	CCR_avps.append(encodeAVP('CC-Request-Number',req_num[ORIGIN_HOST+";"+apn+";"+msid]))
+	print "read mk"
+	print mklist
+	for mk in mklist:
+		print mk
+		for k in mk:
+			v=mk[k]
+			print k
+			print v
+			CCR_avps.append(encodeAVP('Usage-Monitoring-Information',[encodeAVP('Used-Service-Unit',[encodeAVP('CC-Total-Octets',v)]),encodeAVP('Monitoring-Key',str(k))]))
+			print "added"
+	CCR=HDRItem()
+	#setFlags(CER,DIAMETER_HDR_PROXIABLE)
+	# Set command code
+	CCR.cmd=dictCOMMANDname2code('Credit-Control')
+	CCR.appId=16777238
+	# Set Hop-by-Hop and End-to-End
+	initializeHops(CCR)
+	setFlags(CCR,DIAMETER_HDR_PROXIABLE)
+	msg=createReq(CCR,CCR_avps)
+	# send data
+	Conn.send(msg.decode('hex'))
+	
+def stop(msid,apn):
 	CCR_avps=[ ]
 	CCR_avps.append(encodeAVP('Session-Id',ORIGIN_HOST+";"+apn+";"+msid))
 	CCR_avps.append(encodeAVP('Auth-Application-Id',16777238))
@@ -21,7 +52,7 @@ def stoppdp(msid,apn):
 	CCR_avps.append(encodeAVP('Origin-Realm', ORIGIN_REALM))
 	CCR_avps.append(encodeAVP('Destination-Realm', DEST_REALM))
 	CCR_avps.append(encodeAVP('CC-Request-Type', 3))
-	CCR_avps.append(encodeAVP('CC-Request-Number',1))
+	CCR_avps.append(encodeAVP('CC-Request-Number',req_num[ORIGIN_HOST+";"+apn+";"+msid]))
 	CCR=HDRItem()
 	#setFlags(CER,DIAMETER_HDR_PROXIABLE)
 	# Set command code
@@ -34,7 +65,7 @@ def stoppdp(msid,apn):
 	# send data
 	Conn.send(msg.decode('hex'))	
 	
-def startpdp(msid,apn,ip):
+def start(msid,apn,ip):
 	CCR_avps=[ ]
 	CCR_avps.append(encodeAVP('Session-Id',ORIGIN_HOST+";"+apn+";"+msid))
 	CCR_avps.append(encodeAVP('Auth-Application-Id',16777238))
@@ -42,10 +73,11 @@ def startpdp(msid,apn,ip):
 	CCR_avps.append(encodeAVP('Origin-Realm', ORIGIN_REALM))
 	CCR_avps.append(encodeAVP('Destination-Realm', DEST_REALM))
 	CCR_avps.append(encodeAVP('CC-Request-Type', 1))
-	CCR_avps.append(encodeAVP('CC-Request-Number',0))
+	CCR_avps.append(encodeAVP('CC-Request-Number',req_num[ORIGIN_HOST+";"+apn+";"+msid]))
 	CCR_avps.append(encodeAVP('Framed-IP-Address',ip))
 	CCR_avps.append(encodeAVP('Subscription-Id',[encodeAVP('Subscription-Id-Type',0),encodeAVP('Subscription-Id-Data',msid)]))
 	CCR_avps.append(encodeAVP('Called-Station-Id',apn))
+	CCR_avps.append(encodeAVP('Supported-Features',[encodeAVP('Vendor-Id', 10415), encodeAVP('Feature-List-ID', 1),encodeAVP('Feature-List', 3)]))
 	CCR=HDRItem()
 	#setFlags(CER,DIAMETER_HDR_PROXIABLE)
 	# Set command code
@@ -68,12 +100,19 @@ def handle_cmd(srv):
 			action = jsonObject['action']
 			msid = jsonObject['msid']
 			apn = jsonObject['apn']			
-			if action=="pdpstart":
+			if action=="start":
 				ip = jsonObject['ip']
 				client_list[ORIGIN_HOST+";"+apn+";"+msid]=conn
-				startpdp(msid,apn,ip)
-			elif action=="pdpstop":
-				stoppdp(msid,apn)
+				req_num[ORIGIN_HOST+";"+apn+";"+msid]=0
+				start(msid,apn,ip)
+			elif action=="stop":
+				req_num[ORIGIN_HOST+";"+apn+";"+msid]+=1
+				stop(msid,apn)
+			elif action=="update":	
+				req_num[ORIGIN_HOST+";"+apn+";"+msid]+=1	
+				mklist = jsonObject['mk']
+				print mklist
+				update(msid,apn,mklist)
 		except:
 			break
 
@@ -100,8 +139,25 @@ def handle_gx(conn):
 	elif H.cmd==272:
 		CCA_SESSION=findAVP("Session-Id",avps)
 		rc=findAVP("Result-Code",avps)
+		mklist=[]
+		for avp in avps:
+			if isinstance(avp,tuple):
+				(Name,Value)=avp
+			else:
+				(Name,Value)=decodeAVP(avp)
+			if Name=="Usage-Monitoring-Information":
+				mk=findAVP("Monitoring-Key",Value)		
+				gsu=findAVP("Granted-Service-Unit",Value)
+				total=findAVP("CC-Total-Octets",gsu)	
+				print "mk "+mk
+				print "gsu "+str(total)
+				mkinfo={}
+				mkinfo[mk]=total
+				mklist.append(mkinfo)
 		data = {}
-		data['rc'] = rc
+		if mklist:
+			data['mk'] = mklist
+		data['rc'] = rc		
 		json_data = json.dumps(data)
 		client_list[CCA_SESSION].send(json_data+"\n")
 		
@@ -174,6 +230,7 @@ else:
 
 sock_list=[]	
 client_list={}
+req_num={}
 CMD_HOST = "localhost"
 CMD_PORT = 1111	
 MAX_CLIENTS=5
