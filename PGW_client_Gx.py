@@ -6,6 +6,7 @@ import socket
 import thread
 import select
 import json
+import threading
 sys.path.append("..")
 # Remove them normally
 
@@ -105,7 +106,7 @@ def start(msid,apn,ip):
 
 def handle_cmd(srv):
 	conn,address=srv.accept()
-	peer=str(conn.getpeername())
+	mydata.peer=str(conn.getpeername())
 	while True:
 		try:
 			received = conn.recv(1024)
@@ -117,22 +118,22 @@ def handle_cmd(srv):
 				ip = jsonObject['ip']
 				sess=ORIGIN_HOST+";"+apn+";"+msid
 				client_list[sess]=conn
-				sess_list[peer]=sess
+				sess_list[mydata.peer]=sess
 				req_num[sess]=0
 				start(msid,apn,ip)
 			elif action=="stop":
-				req_num[sess_list[peer]]+=1
+				req_num[sess_list[mydata.peer]]+=1
 				mklist=[]
 				if 'mk' in jsonObject:
 					mklist = jsonObject['mk']
-				stop(sess_list[peer],mklist)
+				stop(sess_list[mydata.peer],mklist)
 			elif action=="update":	
-				req_num[sess_list[peer]]+=1
+				req_num[sess_list[mydata.peer]]+=1
 				mklist=[]
 				if 'mk' in jsonObject:
 					mklist = jsonObject['mk']
 				print mklist
-				update(sess_list[peer],mklist)
+				update(sess_list[mydata.peer],mklist)
 		except:
 			break
 
@@ -311,7 +312,7 @@ else:
  for avp in avps:
     print "Decoded AVP",decodeAVP(avp)
     print "-"*30    
-
+mydata = threading.local()
 sock_list=[]	
 client_list={}
 sess_list={}
