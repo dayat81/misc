@@ -13,15 +13,15 @@ sys.path.append("..")
 
 from libDiameter import *
 
-def update(msid,apn,mklist):
+def update(sess,mklist):
 	CCR_avps=[ ]
-	CCR_avps.append(encodeAVP('Session-Id',ORIGIN_HOST+";"+apn+";"+msid))
+	CCR_avps.append(encodeAVP('Session-Id',sess))
 	CCR_avps.append(encodeAVP('Auth-Application-Id',16777238))
 	CCR_avps.append(encodeAVP('Origin-Host', ORIGIN_HOST))
 	CCR_avps.append(encodeAVP('Origin-Realm', ORIGIN_REALM))
 	CCR_avps.append(encodeAVP('Destination-Realm', DEST_REALM))
 	CCR_avps.append(encodeAVP('CC-Request-Type', 2))
-	CCR_avps.append(encodeAVP('CC-Request-Number',req_num[ORIGIN_HOST+";"+apn+";"+msid]))
+	CCR_avps.append(encodeAVP('CC-Request-Number',req_num[sess]))
 	print "read mk"
 	print mklist
 	for mk in mklist:
@@ -44,15 +44,15 @@ def update(msid,apn,mklist):
 	# send data
 	Conn.send(msg.decode('hex'))
 	
-def stop(msid,apn,mklist):
+def stop(sess,mklist):
 	CCR_avps=[ ]
-	CCR_avps.append(encodeAVP('Session-Id',ORIGIN_HOST+";"+apn+";"+msid))
+	CCR_avps.append(encodeAVP('Session-Id',sess))
 	CCR_avps.append(encodeAVP('Auth-Application-Id',16777238))
 	CCR_avps.append(encodeAVP('Origin-Host', ORIGIN_HOST))
 	CCR_avps.append(encodeAVP('Origin-Realm', ORIGIN_REALM))
 	CCR_avps.append(encodeAVP('Destination-Realm', DEST_REALM))
 	CCR_avps.append(encodeAVP('CC-Request-Type', 3))
-	CCR_avps.append(encodeAVP('CC-Request-Number',req_num[ORIGIN_HOST+";"+apn+";"+msid]))
+	CCR_avps.append(encodeAVP('CC-Request-Number',req_num[sess]))
 	print "read mk"
 	print mklist
 	if mklist:
@@ -105,8 +105,7 @@ def start(msid,apn,ip):
 
 def handle_cmd(srv):
 	conn,address=srv.accept()
-	msid=""
-	apn=""
+	peer=str(conn.getpeername())
 	while True:
 		try:
 			received = conn.recv(1024)
@@ -116,22 +115,24 @@ def handle_cmd(srv):
 				msid = jsonObject['msid']
 				apn = jsonObject['apn']					
 				ip = jsonObject['ip']
-				client_list[ORIGIN_HOST+";"+apn+";"+msid]=conn
-				req_num[ORIGIN_HOST+";"+apn+";"+msid]=0
+				sess=ORIGIN_HOST+";"+apn+";"+msid
+				client_list[sess]=conn
+				sess_list[peer]=sess
+				req_num[sess]=0
 				start(msid,apn,ip)
 			elif action=="stop":
-				req_num[ORIGIN_HOST+";"+apn+";"+msid]+=1
+				req_num[sess_list[peer]]+=1
 				mklist=[]
 				if 'mk' in jsonObject:
 					mklist = jsonObject['mk']
-				stop(msid,apn,mklist)
+				stop(sess_list[peer],mklist)
 			elif action=="update":	
-				req_num[ORIGIN_HOST+";"+apn+";"+msid]+=1
+				req_num[sess_list[peer]]+=1
 				mklist=[]
 				if 'mk' in jsonObject:
 					mklist = jsonObject['mk']
 				print mklist
-				update(msid,apn,mklist)
+				update(sess_list[peer],mklist)
 		except:
 			break
 
@@ -313,6 +314,7 @@ else:
 
 sock_list=[]	
 client_list={}
+sess_list={}
 req_num={}
 CMD_HOST = "localhost"
 CMD_PORT = 1111	
