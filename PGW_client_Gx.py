@@ -55,14 +55,15 @@ def stop(msid,apn,mklist):
 	CCR_avps.append(encodeAVP('CC-Request-Number',req_num[ORIGIN_HOST+";"+apn+";"+msid]))
 	print "read mk"
 	print mklist
-	for mk in mklist:
-		print mk
-		for k in mk:
-			v=mk[k]
-			print k
-			print v
-			CCR_avps.append(encodeAVP('Usage-Monitoring-Information',[encodeAVP('Used-Service-Unit',[encodeAVP('CC-Total-Octets',v)]),encodeAVP('Monitoring-Key',str(k))]))
-			print "added"	
+	if mklist:
+		for mk in mklist:
+			print mk
+			for k in mk:
+				v=mk[k]
+				print k
+				print v
+				CCR_avps.append(encodeAVP('Usage-Monitoring-Information',[encodeAVP('Used-Service-Unit',[encodeAVP('CC-Total-Octets',v)]),encodeAVP('Monitoring-Key',str(k))]))
+				print "added"	
 	CCR=HDRItem()
 	#setFlags(CER,DIAMETER_HDR_PROXIABLE)
 	# Set command code
@@ -120,11 +121,15 @@ def handle_cmd(srv):
 				start(msid,apn,ip)
 			elif action=="stop":
 				req_num[ORIGIN_HOST+";"+apn+";"+msid]+=1
-				mklist = jsonObject['mk']
+				mklist=[]
+				if 'mk' in jsonObject:
+					mklist = jsonObject['mk']
 				stop(msid,apn,mklist)
 			elif action=="update":	
-				req_num[ORIGIN_HOST+";"+apn+";"+msid]+=1	
-				mklist = jsonObject['mk']
+				req_num[ORIGIN_HOST+";"+apn+";"+msid]+=1
+				mklist=[]
+				if 'mk' in jsonObject:
+					mklist = jsonObject['mk']
 				print mklist
 				update(msid,apn,mklist)
 		except:
@@ -151,18 +156,43 @@ def handle_gx(conn):
 		ret=createRes(DWA,DWA_avps)
 		conn.send(ret.decode("hex"))
 	elif H.cmd==258:
+		RAA_SESSION=findAVP("Session-Id",avps)	
 		rartype=findAVP("Re-Auth-Request-Type",avps)
-		qosinfo=findAVP("QoS-Information",avps)		
+		qosinfo=findAVP("QoS-Information",avps)	
+		mklist=[]
+		for avp in avps:
+			if isinstance(avp,tuple):
+				(Name,Value)=avp
+			else:
+				(Name,Value)=decodeAVP(avp)
+			if Name=="Usage-Monitoring-Information":
+				mk=findAVP("Monitoring-Key",Value)		
+				gsu=findAVP("Granted-Service-Unit",Value)
+				if gsu!=-1:
+					total=findAVP("CC-Total-Octets",gsu)	
+					print "mk "+mk
+					print "gsu "+str(total)
+					mkinfo={}
+					mkinfo[mk]=total
+					mklist.append(mkinfo)		
 		data = {}
+		if mklist:
+			data['mk'] = mklist		
 		data['rartype']=rartype
 		if qosinfo!=-1:
 			dl=findAVP("APN-Aggregate-Max-Bitrate-DL",qosinfo)
 			ul=findAVP("APN-Aggregate-Max-Bitrate-UL",qosinfo)
-			data['dl']=dl
-			data['ul']=ul	
+			if dl==-1:
+				dl=findAVP("Max-Requested-Bandwidth-DL",qosinfo)
+			if ul==-1:
+				ul=findAVP("Max-Requested-Bandwidth-UL",qosinfo)	
+			if dl!=-1:
+				data['dl']=dl
+			if ul!=-1:
+				data['ul']=ul	
 		json_data = json.dumps(data)
-		client_list[CCA_SESSION].send(json_data+"\n")			
-		RAA_SESSION=findAVP("Session-Id",avps)		
+		client_list[RAA_SESSION].send(json_data+"\n")			
+		
 		RAA_avps=[]
 		RAA_avps.append(encodeAVP('Session-Id', RAA_SESSION))
 		RAA_avps.append(encodeAVP('Origin-Host', ORIGIN_HOST))
@@ -189,20 +219,27 @@ def handle_gx(conn):
 			if Name=="Usage-Monitoring-Information":
 				mk=findAVP("Monitoring-Key",Value)		
 				gsu=findAVP("Granted-Service-Unit",Value)
-				total=findAVP("CC-Total-Octets",gsu)	
-				print "mk "+mk
-				print "gsu "+str(total)
-				mkinfo={}
-				mkinfo[mk]=total
-				mklist.append(mkinfo)
+				if gsu!=-1:
+					total=findAVP("CC-Total-Octets",gsu)	
+					print "mk "+mk
+					print "gsu "+str(total)
+					mkinfo={}
+					mkinfo[mk]=total
+					mklist.append(mkinfo)
 		data = {}
 		if mklist:
 			data['mk'] = mklist
 		if qosinfo!=-1:
 			dl=findAVP("APN-Aggregate-Max-Bitrate-DL",qosinfo)
 			ul=findAVP("APN-Aggregate-Max-Bitrate-UL",qosinfo)
-			data['dl']=dl
-			data['ul']=ul
+			if dl==-1:
+				dl=findAVP("Max-Requested-Bandwidth-DL",qosinfo)
+			if ul==-1:
+				ul=findAVP("Max-Requested-Bandwidth-UL",qosinfo)
+			if dl!=-1:
+				data['dl']=dl
+			if ul!=-1:
+				data['ul']=ul	
 		data['rc'] = rc		
 		json_data = json.dumps(data)
 		client_list[CCA_SESSION].send(json_data+"\n")
