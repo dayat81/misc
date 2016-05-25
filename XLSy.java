@@ -59,7 +59,7 @@ public class XLSy {
 								if(formula.contains("SubsCharging.state")){
 									System.out.println(formula);
 									String exp="";
-									String TB="00-24";
+									String TB="";
 									String SID="";
 									String NP="";
 									String DL="";
@@ -136,6 +136,9 @@ public class XLSy {
 						    		    String key = entry.getKey();
 						    		    Object value = entry.getValue();
 						    		    System.out.println(key+" - "+value);
+						    		    if(TB.equals("")){
+						    		    	TB="00-24";
+						    		    }
 						    		    DBObject l3f = new BasicDBObject("SID",SID).append("CID", key).append("Value", value).append("TimeBand", TB).append("AccessType", AT).append("NetworkPriority", NP).append("DL", DL).append("UL", UL);
 						    		    l3acc.add(l3f);
 						    		}
